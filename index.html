@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Keychat">
+  <meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161514" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="A keyboard-first Claude chat for iPhone with a hardware keyboard and trackpad.">
+  <title>Keychat</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "@anthropic-ai/sdk": "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.134.0/+esm",
+      "marked": "https://cdn.jsdelivr.net/npm/marked@18.1.0/+esm",
+      "dompurify": "https://cdn.jsdelivr.net/npm/dompurify@3.4.16/+esm"
+    }
+  }
+  </script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="app">
+    <aside id="drawer" aria-label="Chats">
+      <div class="drawer-head">
+        <span class="drawer-title">Chats</span>
+        <button class="icon-btn" id="btn-new-2" title="New chat (n)" aria-label="New chat">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <nav id="chat-list"></nav>
+      <div class="drawer-foot">
+        <button class="text-btn" id="btn-settings">Settings <kbd>,</kbd></button>
+        <button class="text-btn" id="btn-help">Shortcuts <kbd>?</kbd></button>
+      </div>
+    </aside>
+    <div id="scrim"></div>
+
+    <section id="main">
+      <header id="topbar">
+        <button class="icon-btn" id="btn-drawer" title="Chats (b)" aria-label="Show chats">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+        </button>
+        <div id="chat-title">New chat</div>
+        <button class="icon-btn" id="btn-palette" title="Command palette (⌘K)" aria-label="Command palette">
+          <svg viewBox="0 0 24 24"><path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-new" title="New chat (n)" aria-label="New chat">
+          <svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+      </header>
+
+      <main id="scroller" tabindex="-1">
+        <div id="thread" aria-live="polite"></div>
+      </main>
+      <button id="jump" hidden>New text below <kbd>G</kbd></button>
+
+      <footer id="dock">
+        <div id="edit-banner" hidden>Editing a message: sending replaces it and everything after it. <kbd>Esc</kbd> cancels.</div>
+        <form id="composer" autocomplete="off">
+          <textarea id="input" rows="1" placeholder="Message Claude…" enterkeyhint="send"
+            autocapitalize="sentences" spellcheck="true" aria-label="Message"></textarea>
+          <button id="send" type="submit" title="Send (↵)" aria-label="Send">
+            <svg class="i-send" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            <svg class="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+          </button>
+        </form>
+        <div id="statusbar">
+          <button class="chip" id="chip-mode" title="Switch between TYPE and READ mode (Esc / i)">TYPE</button>
+          <button class="chip" id="chip-model" title="Model (m, 1–4)">Opus 5.5</button>
+          <button class="chip" id="chip-effort" title="Thinking effort (t)">medium</button>
+          <button class="chip" id="chip-speed" title="Scroll speed (− / =)">⇅ 4</button>
+          <span class="chip ghost" id="chip-auto" title="Auto-scroll is on (s)" hidden>auto ⇣</span>
+          <span id="hints"></span>
+          <button class="chip" id="chip-keys" title="Command palette">⌘K</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <div id="palette" class="overlay" hidden>
+    <div class="sheet palette-sheet" role="dialog" aria-label="Command palette">
+      <input id="palette-input" type="text" placeholder="Type a command, model, or chat…"
+        autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <ul id="palette-list" role="listbox"></ul>
+      <div class="sheet-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> run</span><span><kbd>Esc</kbd> close</span></div>
+    </div>
+  </div>
+
+  <div id="help" class="overlay" hidden>
+    <div class="sheet help-sheet" role="dialog" aria-label="Keyboard shortcuts" tabindex="-1">
+      <div class="sheet-head"><h2>Keyboard</h2><button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div id="help-body" tabindex="-1"></div>
+    </div>
+  </div>
+
+  <div id="settings" class="overlay" hidden>
+    <div class="sheet settings-sheet" role="dialog" aria-label="Settings">
+      <div class="sheet-head"><h2>Settings</h2><button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <form id="settings-form" autocomplete="off">
+        <label class="field">
+          <span>Anthropic API key</span>
+          <div class="row">
+            <input name="apiKey" type="password" placeholder="sk-ant-…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <button type="button" class="text-btn" id="toggle-key">Show</button>
+          </div>
+          <small>Stored only in this browser on this device and sent only to api.anthropic.com. Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</small>
+        </label>
+        <div class="field-row">
+          <label class="field"><span>Model</span><select name="model"></select></label>
+          <label class="field"><span>Thinking effort</span><select name="effort"></select></label>
+        </div>
+        <label class="field">
+          <span>System prompt <small>(optional)</small></span>
+          <textarea name="system" rows="3" placeholder="e.g. Be concise. I read on a phone."></textarea>
+        </label>
+        <div class="field-row">
+          <label class="field"><span>Scroll speed</span><input name="speedIdx" type="range" min="0" max="6" step="1"></label>
+          <label class="field"><span>Theme</span>
+            <select name="theme"><option value="auto">Match system</option><option value="light">Light</option><option value="dark">Dark</option></select>
+          </label>
+        </div>
+        <label class="check"><input name="enterSends" type="checkbox"> <span><kbd>↵</kbd> sends, <kbd>⇧↵</kbd> adds a new line (off: <kbd>⌘↵</kbd> sends)</span></label>
+        <label class="check"><input name="showThinking" type="checkbox"> <span>Show Claude's thinking summaries</span></label>
+        <div class="danger-zone">
+          <button type="button" class="text-btn danger" id="btn-clear-all">Delete all chats</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
